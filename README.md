@@ -1,11 +1,13 @@
 SQuIHD
 
 This repository is a set of programs (Stock Quote Intraday History Downloaders) for automating the retrieval of stock price information.
-Specifically, here is very little minute-level and tick-level data available for free online, and it is often hard or tedious to access.
+
+Specifically, there is very little minute-level and tick-level data available for free online, and it is often hard to access due to bandwidth restrictions or complicated interfaces.
 
 ## Credits
 
 Written by [Ryan Branch](http://ryanbran.ch/)
+
 For inquiries regarding this code, contact me at ryanbranch@ryanbran.ch
 
 
