@@ -5,7 +5,7 @@ Specifically, here is very little minute-level and tick-level data available for
 
 ## Credits
 
-Written by [Ryan Branch](https://www.linkedin.com/in/rjbrjb/)
+Written by [Ryan Branch](http://ryanbran.ch/)
 For inquiries regarding this code, contact me at ryanbranch@ryanbran.ch
 
 

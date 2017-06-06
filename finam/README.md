@@ -18,7 +18,7 @@ Written and released on 5 June 2017
 
 ## Credits
 
-Written by [Ryan Branch](https://www.linkedin.com/in/rjbrjb/)
+Written by [Ryan Branch](http://ryanbran.ch/)
 For inquiries regarding this code, contact me at ryanbranch@ryanbran.ch
 
 
