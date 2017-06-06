@@ -13,7 +13,7 @@ import pandas as pd
 # - The Data Source does not seem to allow multiple years of MINUTE data to be downloaded at once.
 
 #Specifies number of years in the past to attempt downloads
-YEARS_BACK = 40
+YEARS_BACK = 10
 
 #Specifies directory in which data is saved, subdivided by ticker symbol
 DATA_DIRECTORY = "finam_data"
@@ -115,13 +115,14 @@ def buildURL(tickerSymbol, fromDate, toDate, headers=False, saveAs="download"):
 
     return url
 
-#Builds a list of tuples of datetime.date objects, of length "n", and of the following format,
+#Builds a list of tuples of datetime.date objects, of length "n" years, and of the following format,
 #where Y represents today's year, M today's month, and D today's day:
 #    (datetime.date(Y - 1, M, D + 1), datetime.date(Y, M, D))
 #    (datetime.date(Y - 2, M, D + 1), datetime.date(Y - 1, M, D))
 #    (datetime.date(Y - 3, M, D + 1), datetime.date(Y - 2, M, D))
 def getYearTuplesList(n):
     ytl = []
+    #tDate, tYear, tMonth, and tDay all refer to "today" and not "to-date"/"to-day"
     tDate = datetime.date.today()
     tYear = tDate.year
     tMonth = tDate.month
@@ -130,50 +131,110 @@ def getYearTuplesList(n):
         ytl.append((datetime.date(tYear - (i + 1), tMonth, tDay + 1), datetime.date(tYear - i, tMonth, tDay)))
     return ytl
 
+#Builds a list of tuples of datetime.date objects, of length "n" months, and of the following format,
+#where Y represents today's year, M today's month, and D today's day:
+#    (datetime.date(Y, M - 1, D + 1), datetime.date(Y, M, D))
+#    (datetime.date(Y, M - 2, D + 1), datetime.date(Y, M - 1, D))
+#    (datetime.date(Y, M - 3, D + 1), datetime.date(Y, M - 2, D))
+#     ...
+#    (datetime.date(Y - 1, M - 2, D + 1), datetime.date(Y - 1, M - 1, D))
+def getMonthTuplesList(n):
+    mtl = []
+    tDate = datetime.date.today()
+    tYear = tDate.year
+    tMonth = tDate.month
+    tDay = tDate.day
+    startYear = tYear
+    stopYear = tYear
+    startMonth = tMonth
+    stopMonth = tMonth
+    startDay = tDay + 1
+    stopDay = tDay
+
+    for i in range(n):
+        #Begin by adjusting the start date parameters
+        startMonth = stopMonth - 1
+        if (startMonth <= 0):
+            startYear -= 1
+            startMonth += 12
+
+        mtl.append((datetime.date(startYear, startMonth, startDay), datetime.date(stopYear, stopMonth, stopDay)))
+
+        #End by adjusting the stop date parameters for the next iteration
+        stopMonth -= 1
+        if (stopMonth <= 0):
+            stopYear -= 1
+            stopMonth += 12
+    return mtl
+
 def main():
 
     makeFolders()
 
     #A list of tuples of from-date and to-date pairs, every year spanning YEARS_BACK years into the past
-    yearTuples = getYearTuplesList(YEARS_BACK)
+    tuples = []
+    if (FREQUENCY == 1):
+        tuples = getMonthTuplesList(YEARS_BACK * 12)
+    elif (FREQUENCY == 2):
+        tuples = getYearTuplesList(YEARS_BACK)
 
     for tickerSymbol in EM_DICT.keys():
 
         symbolDirectory = os.path.join(os.path.join(sys.path[0], DATA_DIRECTORY), tickerSymbol)
         if os.path.exists(symbolDirectory):
+
             print("SUBFOLDER ALREADY EXISTS for ticker symbol " + tickerSymbol)
             print("To update contents, delete the subfolder and run this program again.")
         else:
+
             print("[==============================] Beginning work for ticker symbol: " + tickerSymbol + " [==============================]")
             os.makedirs(symbolDirectory)
             print("Created subfolder.")
+
             urlList = []
-            for i, tuple in enumerate(yearTuples):
+            for i, tuple in enumerate(tuples):
                 urlList.append(buildURL(tickerSymbol, tuple[0], tuple[1], True))
             #Reverses the order of the download URLs, I just found things easier to comprehend while writing this way
             urlList = urlList[::-1]
+            numURLs = len(urlList)
 
-            #This is how the program figures out the first viable "year" from which to fill the output CSV
-            firstViable = YEARS_BACK
+            #This is how the program figures out the first viable time period from which to fill the output CSV
+            firstViable = numURLs
             found = False
-            for i in range(YEARS_BACK):
+            for i in range(numURLs):
                 if not found:
                     print(str(i) + " in firstViable loop.")
                     try:
                         test_csv = pd.read_csv(urlList[i])
                         firstViable = i
                         found = True
-                        print("FOUND viable data in year at position: " + str(i) + "    (traversing forward from " + str(YEARS_BACK) + " years back)")
+                        print("FOUND viable data in year at position: " + str(i) + "    (traversing forward from " + str(numURLs) + " back)")
                     except Exception as e:
                         print(str(e))
 
             if (found):
-                main_csv = pd.read_csv(urlList[firstViable])
-                for i in range(firstViable + 1, YEARS_BACK):
-                    print(str(i) + " in merging loop.")
-                    temp_csv = pd.read_csv(urlList[i])
-                    main_csv = main_csv.append(temp_csv)
-                main_csv.to_csv(os.path.join(DATA_DIRECTORY, tickerSymbol, (tickerSymbol + ".csv")), index=False)
+
+                #In tick-level mode, a separate CSV file is generated for each 1-month period
+                if (FREQUENCY == 1):
+                    counter = 0
+                    for i in range(firstViable, numURLs):
+                        print(str(i) + " in merging loop.  Corresponds to file number " + str(counter) + " (0-indexed).")
+                        main_csv = pd.read_csv(urlList[i])
+                        nameString = (tickerSymbol + "_tick_" + str(counter) + ".csv")
+                        main_csv.to_csv(os.path.join(DATA_DIRECTORY, tickerSymbol, nameString), index=False)
+                        counter += 1
+
+                #In minute-level mode, a single CSV file is generated, composed of all 1-year periods combined
+                elif (FREQUENCY == 2):
+                    main_csv = pd.read_csv(urlList[firstViable])
+                    for i in range(firstViable + 1, numURLs):
+                        print(str(i) + " in merging loop.")
+                        temp_csv = pd.read_csv(urlList[i])
+                        main_csv = main_csv.append(temp_csv)
+
+                    nameString = (tickerSymbol + "_min.csv")
+                    main_csv.to_csv(os.path.join(DATA_DIRECTORY, tickerSymbol, nameString), index=False)
+
             else:
                 print("DATA UNAVAILABLE FOR TICKER: " + tickerSymbol)
 

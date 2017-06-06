@@ -7,17 +7,18 @@ It sends all requests through their [public quote export interface](https://www.
 ## Usage
 To download minute-level data, everything is handled automatically! Just run the script with Python.
 
+For tick-level data, you can change the FREQUENCY variable from 2 to 1 before running.
+
+Minute-mode compiles all of 1 stock's history into a single CSV. Tick-mode gives each stock a separate CSV for every month.
+
     % python finam_squihd.py
 	
 A list of the 44 US stocks available on Finam is written into the code. If the availability of these stocks changes in the future, the code will need to be updated accordingly.
 
-Currently the program is only tested and confirmed to function with minute-level data.
-
-For tick-level data, you can change the FREQUENCY variable from 2 to 1, but more modification is needed to make everything functional. 
-
 ## History
 
 Written and released on 5 June 2017
+Last updated and tested on 6 June 2017
 
 ## Credits
 
