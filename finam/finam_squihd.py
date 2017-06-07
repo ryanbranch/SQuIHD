@@ -19,8 +19,8 @@ YEARS_BACK = 10
 DATA_DIRECTORY = "finam_data"
 
 #Specifies frequency of data to download
-# 1 = TICK DATA
-# 2 = MINUTE DATA
+# 1 = TICK DATA (pairs well with YEARS_BACK = 6)
+# 2 = MINUTE DATA (pairs well with YEARS_BACK = 10)
 FREQUENCY = 2
 
 #Dictionary pairing supported stock ticker symbols with corresponding "em" values
@@ -218,7 +218,7 @@ def main():
                 if (FREQUENCY == 1):
                     counter = 0
                     for i in range(firstViable, numURLs):
-                        print(str(i) + " in merging loop.  Corresponds to file number " + str(counter) + " (0-indexed).")
+                        print(str(i) + " in download loop.  Corresponds to file number " + str(counter) + " (0-indexed).")
                         main_csv = pd.read_csv(urlList[i])
                         nameString = (tickerSymbol + "_tick_" + str(counter) + ".csv")
                         main_csv.to_csv(os.path.join(DATA_DIRECTORY, tickerSymbol, nameString), index=False)
@@ -228,7 +228,7 @@ def main():
                 elif (FREQUENCY == 2):
                     main_csv = pd.read_csv(urlList[firstViable])
                     for i in range(firstViable + 1, numURLs):
-                        print(str(i) + " in merging loop.")
+                        print(str(i) + " in download loop.")
                         temp_csv = pd.read_csv(urlList[i])
                         main_csv = main_csv.append(temp_csv)
 
