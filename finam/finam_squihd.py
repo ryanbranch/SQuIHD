@@ -3,6 +3,7 @@ from datetime import timedelta
 import os
 import sys
 import pandas as pd
+import re
 
 #NOTES
 # - The Data Source appears to cap TICK downloads to 1,000,000 lines per file.
@@ -13,7 +14,7 @@ import pandas as pd
 # - The Data Source does not seem to allow multiple years of MINUTE data to be downloaded at once.
 
 #Specifies number of years in the past to attempt downloads
-YEARS_BACK = 10
+YEARS_BACK = 6
 
 #Specifies directory in which data is saved, subdivided by ticker symbol
 DATA_DIRECTORY = "finam_data"
@@ -22,6 +23,18 @@ DATA_DIRECTORY = "finam_data"
 # 1 = TICK DATA (pairs well with YEARS_BACK = 6)
 # 2 = MINUTE DATA (pairs well with YEARS_BACK = 10)
 FREQUENCY = 2
+
+#Specifies whether to run in update mode
+# False: Existing data is left untouched
+# True: Checks date of most recent data in most recent CSV and updates that CSV
+#       so that its contents are as up-to-date as possible
+UPDATE_MODE = True
+
+#Specifies the minimum number of days by which a file must be outdated in order to update it
+#If UPDATE_MODE is false, this setting will not matter
+#A value of 0 indicates that files should be updated regardless of timing
+#A value of 7 will cause files with data more than a week old to be updated
+UPDATE_THRESHOLD = 7
 
 #Dictionary pairing supported stock ticker symbols with corresponding "em" values
 EM_DICT = {
@@ -184,7 +197,57 @@ def main():
         if os.path.exists(symbolDirectory):
 
             print("SUBFOLDER ALREADY EXISTS for ticker symbol " + tickerSymbol)
-            print("To update contents, delete the subfolder and run this program again.")
+            if (UPDATE_MODE):
+
+                updatePath = ""
+                print("[==============] Updating ticker symbol: " + tickerSymbol + " [==============]")
+                #In tick-level mode, we first identify the filename which contains the most recent data
+                if (FREQUENCY == 1):
+                    index = -1
+                    max = 0
+                    filesList = os.listdir(symbolDirectory)
+                    for i, filename in enumerate(filesList):
+                        fileNumber = int(re.search(r'\d+', filename).group())
+                        #When a new maximum is found, max is set and index is updated
+                        if (fileNumber > max):
+                            max = fileNumber
+                            index = i
+                    #If index is no longer equal to -1, then we've identified a maximum and its index
+                    if (index == -1):
+                        print("Unable to update data: Could not find most recent data file in directory.")
+                    else:
+                        updateFile = filesList[index]
+                        updatePath = os.path.join(symbolDirectory, updateFile)
+
+                #In minute-level mode, there is only one option for the file
+                elif (FREQUENCY == 2):
+                    updateFile = (tickerSymbol + ".csv")
+                    updatePath = os.path.join(symbolDirectory, updateFile)
+
+                #At this point, updatePath should be determined
+                if (updatePath == ""):
+                        print("Unable to update data: Could not find path of file to update.")
+                else:
+                    #Gets the date corresponding to the most recent data
+                    dataframe = pd.read_csv(updatePath)
+                    recentDate = datetime.datetime.strptime(dataframe.tail(1)["<DATE>"].values[0], "%m/%d/%y").date()
+                    #Determines the number of days by which this recent data is outdated
+                    daysOld = (datetime.date.today() - recentDate).days
+
+                #Updating can proceed if the update threshold is met or exceeded
+                if (daysOld >= UPDATE_THRESHOLD):
+                    #The update will span from one day after the date of the most recent data, to today
+                    startDate = recentDate + datetime.timedelta(1)
+                    endDate = datetime.date.today()
+                    updateURL = buildURL(tickerSymbol, startDate, endDate, True) #URL from which the new data is coming
+                    existing_data_csv = pd.read_csv(updatePath)
+                    new_data_csv = pd.read_csv(updateURL)
+                    existing_data_csv = existing_data_csv.append(new_data_csv)
+                    existing_data_csv.to_csv(updatePath, index=False)
+
+            else:
+                print("To update contents, set UPDATE_MODE to true.")
+
         else:
 
             print("[==============================] Beginning work for ticker symbol: " + tickerSymbol + " [==============================]")
